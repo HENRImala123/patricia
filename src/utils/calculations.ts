@@ -1,6 +1,17 @@
 import type { DaySchedule } from '../types/index.ts';
 
 /**
+ * Resolves the full URL for a table, preserving subpaths like /patricia/ on GitHub Pages.
+ */
+export function getClientTableUrl(tableNumber: number): string {
+  if (typeof window === 'undefined') {
+    return `/?view=client&mesa=${tableNumber}`;
+  }
+  const cleanPath = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+  return `${window.location.origin}${cleanPath}/?view=client&mesa=${tableNumber}`;
+}
+
+/**
  * Calculates promotion discount and savings.
  * Returns null if no promotional price or if promotional price is >= normal price.
  */

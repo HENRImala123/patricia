@@ -9,6 +9,7 @@ import type {
   RestaurantSettings,
   Order,
 } from '../types/index.ts';
+import { getClientTableUrl } from '../utils/calculations.ts';
 
 const BROADCAST_CHANNEL_NAME = 'cardapio_digital_sync_channel';
 
@@ -183,7 +184,7 @@ const DEFAULT_TABLES: Table[] = [
     number: 1,
     sector: 'Salão Principal',
     token: 'tk_98a7fbc2',
-    qrUrl: window.location.origin + '/?view=client&mesa=1',
+    qrUrl: getClientTableUrl(1),
     isEditable: true,
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -195,7 +196,7 @@ const DEFAULT_TABLES: Table[] = [
     number: 2,
     sector: 'Deck',
     token: 'tk_41e8c9d0',
-    qrUrl: window.location.origin + '/?view=client&mesa=2',
+    qrUrl: getClientTableUrl(2),
     isEditable: true,
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -381,7 +382,7 @@ class StorageService {
       ...tableData,
       id: `tab-${Date.now()}`,
       token: `tk_${randomHex}`,
-      qrUrl: `${window.location.origin}/?view=client&mesa=${tableData.number}`,
+      qrUrl: getClientTableUrl(tableData.number),
       isEditable: true,
       createdAt: new Date().toISOString(),
     };

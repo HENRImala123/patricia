@@ -18,6 +18,7 @@ import type { Table, RestaurantSettings } from '../../types/index.ts';
 import { storageService } from '../../services/storage.ts';
 import { soundService } from '../../services/sound.ts';
 import { generateQrDataUrl } from '../../services/qrcode.ts';
+import { getClientTableUrl } from '../../utils/calculations.ts';
 
 interface TablesViewProps {
   settings: RestaurantSettings;
@@ -59,7 +60,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
   useEffect(() => {
     tables.forEach(async (t) => {
       if (!qrImages[t.id]) {
-        const url = `${window.location.origin}/?view=client&mesa=${t.number}`;
+        const url = getClientTableUrl(t.number);
         const dataUrl = await generateQrDataUrl(url, 240);
         setQrImages((prev) => ({ ...prev, [t.id]: dataUrl }));
       }
@@ -147,7 +148,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
   };
 
   const handleNfcWrite = async (table: Table) => {
-    const tableUrl = `${window.location.origin}/?view=client&mesa=${table.number}`;
+    const tableUrl = getClientTableUrl(table.number);
     // Web NFC check
     if ('NDEFReader' in window) {
       try {
