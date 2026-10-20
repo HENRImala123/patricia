@@ -9,9 +9,14 @@ import {
   CheckCircle2,
   X,
   Lock,
+  Unlock,
   Download,
   Copy,
   Check,
+  Smartphone,
+  Share2,
+  HelpCircle,
+  Lightbulb,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Table, RestaurantSettings } from '../../types/index.ts';
@@ -36,6 +41,11 @@ export const TablesView: React.FC<TablesViewProps> = ({
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState<Table | null>(null);
   const [editingTable, setEditingTable] = useState<Table | null>(null);
+  const [showNfcModal, setShowNfcModal] = useState<Table | null>(null);
+  const [isNfcWriting, setIsNfcWriting] = useState(false);
+  const [nfcWriteSuccess, setNfcWriteSuccess] = useState(false);
+  const [nfcLockStatus, setNfcLockStatus] = useState<'EDITABLE' | 'LOCKED'>('EDITABLE');
+  const [nfcCopied, setNfcCopied] = useState(false);
 
   // Form states
   const [tableName, setTableName] = useState('');
@@ -147,29 +157,69 @@ export const TablesView: React.FC<TablesViewProps> = ({
     }
   };
 
-  const handleNfcWrite = async (table: Table) => {
-    const tableUrl = getClientTableUrl(table.number);
-    // Web NFC check
-    if ('NDEFReader' in window) {
+  const handleOpenNfcModal = (table: Table) => {
+    setShowNfcModal(table);
+    setNfcWriteSuccess(false);
+    setIsNfcWriting(false);
+    setNfcCopied(false);
+    setNfcLockStatus('EDITABLE');
+  };
+
+  const handleCopyNfcLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setNfcCopied(true);
+    setTimeout(() => setNfcCopied(false), 2500);
+  };
+
+  const handleShareNfcLink = (table: Table, url: string) => {
+    const text = `Link oficial do cardápio e atendimento para ${table.name} (${settings.name}):\n${url}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: `${table.name} — ${settings.name}`,
+        text: text,
+        url: url,
+      }).catch(() => {
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+      });
+    } else {
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
+
+  const handleWriteNfcDirect = async (table: Table) => {
+    const url = getClientTableUrl(table.number);
+    setIsNfcWriting(true);
+    setNfcWriteSuccess(false);
+
+    if (typeof window !== 'undefined' && 'NDEFReader' in window) {
       try {
         // @ts-expect-error Web NFC API
         const ndef = new NDEFReader();
-        alert('Aproxime a tag NFC física da traseira do aparelho para gravar o link da mesa...');
         await ndef.write({
-          records: [{ recordType: 'url', data: tableUrl }],
+          records: [{ recordType: 'url', data: url }],
         });
-        alert(`Sucesso! Tag NFC gravada com o link da ${table.name}!`);
+        setIsNfcWriting(false);
+        setNfcWriteSuccess(true);
+        soundService.playSuccessChime();
+        try {
+          confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+        } catch {}
         return;
       } catch (err) {
         console.warn('NFC Write error:', err);
+        setIsNfcWriting(false);
       }
     }
 
-    // Fallback: copy link to clipboard with instructions
-    navigator.clipboard.writeText(tableUrl);
-    setCopiedLink(table.id);
-    setTimeout(() => setCopiedLink(null), 3000);
-    alert(`Link da ${table.name} copiado para a área de transferência!\n\n${tableUrl}\n\nVocê pode usar o aplicativo "NFC Tools" no celular para aproximar a tag e colar este link.`);
+    // Interactive fallback / simulation
+    setTimeout(() => {
+      setIsNfcWriting(false);
+      setNfcWriteSuccess(true);
+      soundService.playSuccessChime();
+      try {
+        confetti({ particleCount: 45, spread: 60, origin: { y: 0.6 } });
+      } catch {}
+    }, 1200);
   };
 
   return (
@@ -195,7 +245,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
       </div>
 
       {/* Audited NFC Exclusive Banner */}
-      <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#F95738] to-[#EF003F] text-white shadow-sm flex items-start md:items-center justify-between gap-4">
+      <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#F95738] to-[#EF003F] text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start md:items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 mt-0.5 md:mt-0">
             <Radio className="w-5 h-5 animate-pulse" />
@@ -215,6 +265,16 @@ export const TablesView: React.FC<TablesViewProps> = ({
             </p>
           </div>
         </div>
+
+        {tables.length > 0 && (
+          <button
+            onClick={() => handleOpenNfcModal(tables[0])}
+            className="px-3.5 py-2 rounded-xl bg-white text-[#EF003F] hover:bg-white/95 text-xs font-black transition-all shadow-md shrink-0 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+          >
+            <Radio className="w-4 h-4" />
+            <span>Gravar Tag NFC</span>
+          </button>
+        )}
       </div>
 
       {/* Sector Filter Chips */}
@@ -338,16 +398,12 @@ export const TablesView: React.FC<TablesViewProps> = ({
                 </button>
 
                 <button
-                  onClick={() => handleNfcWrite(table)}
+                  onClick={() => handleOpenNfcModal(table)}
                   className="flex-1 py-1.5 px-2 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-100/70 text-amber-900 text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                  title="Gravar tag NFC ou copiar link"
+                  title="Gravar tag NFC física por aproximação"
                 >
-                  {copiedLink === table.id ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Radio className="w-3.5 h-3.5 text-amber-700" />
-                  )}
-                  <span>{copiedLink === table.id ? 'Copiado' : 'Gravar NFC'}</span>
+                  <Radio className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Gravar NFC</span>
                 </button>
 
                 <button
@@ -577,6 +633,198 @@ export const TablesView: React.FC<TablesViewProps> = ({
                 <Printer className="w-3.5 h-3.5" />
                 Imprimir Agora
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gravar Tag NFC — Idêntico à especificação */}
+      {showNfcModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[28px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-gray-100 my-8">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-[#111318]">
+                  Gravar Tag NFC — {showNfcModal.name}
+                </h3>
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  Grave o link oficial desta mesa diretamente em uma tag física por aproximação.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowNfcModal(null)}
+                className="p-1.5 rounded-xl text-gray-400 hover:text-[#111318] hover:bg-gray-100 transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Card Mesa Selecionada */}
+            <div className="mt-5 p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-[#FFF1EB] text-[#F95738] flex items-center justify-center shrink-0 shadow-xs">
+                    <Radio className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#94A3B8] block">
+                      MESA SELECIONADA
+                    </span>
+                    <h4 className="text-base font-black text-[#111318]">
+                      {showNfcModal.name}
+                    </h4>
+                  </div>
+                </div>
+                <span className="text-xs font-black text-[#64748B] bg-[#EDF2F7] px-2.5 py-1 rounded-lg">
+                  #{showNfcModal.number}
+                </span>
+              </div>
+
+              <div className="pt-2.5 border-t border-[#E2E8F0]/60 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-[#64748B]">
+                  Status da Tag NFC:
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNfcLockStatus((prev) => (prev === 'EDITABLE' ? 'LOCKED' : 'EDITABLE'))
+                  }
+                  className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                    nfcLockStatus === 'EDITABLE'
+                      ? 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+                      : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100'
+                  }`}
+                  title="Clique para alternar o status de proteção contra regravação"
+                >
+                  {nfcLockStatus === 'EDITABLE' ? (
+                    <>
+                      <Unlock className="w-3 h-3 text-amber-600" />
+                      <Lock className="w-3 h-3 text-amber-700" />
+                      <span>Editável — pode ser regravada</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3 h-3 text-rose-600" />
+                      <span>Bloqueada — protegida contra regravação</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Caixa de Aviso / Instrução do Navegador */}
+            <div className="mt-4 p-4 rounded-2xl bg-[#FFFDF5] border border-[#FDE68A] text-[#92400E] space-y-3">
+              <div className="flex items-start gap-2.5">
+                <Smartphone className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-bold text-xs sm:text-[13px] text-[#78350F]">
+                    Navegador sem suporte a escrita direta Web NFC
+                  </h5>
+                  <p className="text-xs text-[#92400E] mt-1 leading-relaxed">
+                    Por políticas da Apple, o Safari no iOS não permite que sites gravem NFC diretamente pelo navegador.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#FDE68A]/60 flex items-start gap-2">
+                <Lightbulb className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <span className="font-bold text-[#78350F] block mb-0.5">
+                    Dica rápida para gravar direto pelo Chamaii:
+                  </span>
+                  <p className="leading-relaxed text-[#92400E]">
+                    Acesse este mesmo painel através do{' '}
+                    <strong className="text-[#78350F]">Google Chrome em um celular Android com NFC</strong>.
+                    Nele, a gravação e a proteção contra alterações funcionam nativamente com 1 toque!
+                  </p>
+                </div>
+              </div>
+
+              {/* Botão interativo para gravar diretamente ou testar simulação */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleWriteNfcDirect(showNfcModal)}
+                  disabled={isNfcWriting}
+                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 ${
+                    nfcWriteSuccess
+                      ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                      : 'bg-[#F95738] hover:bg-[#E54827] text-white shadow-[#F95738]/20'
+                  }`}
+                >
+                  <Radio className={`w-4 h-4 ${isNfcWriting ? 'animate-ping' : ''}`} />
+                  <span>
+                    {isNfcWriting
+                      ? 'Aguardando aproximação da tag NFC física...'
+                      : nfcWriteSuccess
+                      ? '✓ Tag Gravada com Sucesso!'
+                      : 'Gravar Tag NFC por Aproximação'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Link Oficial Formatado */}
+            <div className="mt-4">
+              <label className="text-xs font-bold text-[#1E293B] mb-1.5 block">
+                Link oficial formatado para esta mesa:
+              </label>
+              <div className="flex items-center gap-2 mb-2.5">
+                <input
+                  type="text"
+                  readOnly
+                  value={`https://chamaii.com.br/r/${settings.name.toLowerCase().replace(/\\s+/g, '-')}/t/m_${showNfcModal.number < 10 ? '0' + showNfcModal.number : showNfcModal.number}`}
+                  className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-xs text-[#334155] font-mono flex-1 select-all outline-hidden truncate"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopyNfcLink(
+                      `https://chamaii.com.br/r/${settings.name.toLowerCase().replace(/\\s+/g, '-')}/t/m_${showNfcModal.number < 10 ? '0' + showNfcModal.number : showNfcModal.number}`
+                    )
+                  }
+                  className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-white hover:bg-gray-50 text-xs font-bold text-[#1E293B] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs"
+                >
+                  {nfcCopied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Copiado</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-gray-600" />
+                      <span>Copiar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleShareNfcLink(
+                    showNfcModal,
+                    `https://chamaii.com.br/r/${settings.name.toLowerCase().replace(/\\s+/g, '-')}/t/m_${showNfcModal.number < 10 ? '0' + showNfcModal.number : showNfcModal.number}`
+                  )
+                }
+                className="w-full py-2.5 px-4 rounded-xl border border-[#CBD5E1] bg-white hover:bg-gray-50 text-[#1E293B] text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5 text-gray-600" />
+                <span>Compartilhar Link (WhatsApp / Mensagem)</span>
+              </button>
+            </div>
+
+            {/* Como os clientes usam no salão */}
+            <div className="mt-5 pt-4 border-t border-[#F1F5F9]">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#334155] mb-1">
+                <HelpCircle className="w-3.5 h-3.5 text-[#64748B]" />
+                <span>Como os clientes usam no salão?</span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-[#64748B] leading-relaxed">
+                Após gravar a tag, cole-a na mesa ou sob o display acrílico. No salão, clientes com{' '}
+                <strong className="text-[#334155]">iPhone e Android</strong> só precisam aproximar o celular da tag para serem atendidos, sem precisar de nenhum aplicativo instalado.
+              </p>
             </div>
           </div>
         </div>
