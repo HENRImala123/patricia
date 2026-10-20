@@ -2,5 +2,7 @@
   "name": "Cardápio Digital Inteligente",
   "description": "Plataforma profissional de cardápio digital, mesas, QR Codes exclusivos, chamados em tempo real e atendimento para restaurantes.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
