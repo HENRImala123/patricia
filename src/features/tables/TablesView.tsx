@@ -731,10 +731,10 @@ export const TablesView: React.FC<TablesViewProps> = ({
                 <Lightbulb className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <span className="font-bold text-[#78350F] block mb-0.5">
-                    Dica rápida para gravar direto pelo Chamaii:
+                    Dica rápida para gravar direto pelo celular:
                   </span>
                   <p className="leading-relaxed text-[#92400E]">
-                    Acesse este mesmo painel através do{' '}
+                    Acesse este mesmo painel administrativo pelo{' '}
                     <strong className="text-[#78350F]">Google Chrome em um celular Android com NFC</strong>.
                     Nele, a gravação e a proteção contra alterações funcionam nativamente com 1 toque!
                   </p>
@@ -774,15 +774,13 @@ export const TablesView: React.FC<TablesViewProps> = ({
                 <input
                   type="text"
                   readOnly
-                  value={`https://chamaii.com.br/r/${settings.name.toLowerCase().replace(/\\s+/g, '-')}/t/m_${showNfcModal.number < 10 ? '0' + showNfcModal.number : showNfcModal.number}`}
+                  value={getClientTableUrl(showNfcModal.number)}
                   className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-xs text-[#334155] font-mono flex-1 select-all outline-hidden truncate"
                 />
                 <button
                   type="button"
                   onClick={() =>
-                    handleCopyNfcLink(
-                      `https://chamaii.com.br/r/${settings.name.toLowerCase().replace(/\\s+/g, '-')}/t/m_${showNfcModal.number < 10 ? '0' + showNfcModal.number : showNfcModal.number}`
-                    )
+                    handleCopyNfcLink(getClientTableUrl(showNfcModal.number))
                   }
                   className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-white hover:bg-gray-50 text-xs font-bold text-[#1E293B] transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs"
                 >
@@ -798,6 +796,15 @@ export const TablesView: React.FC<TablesViewProps> = ({
                     </>
                   )}
                 </button>
+                <a
+                  href={getClientTableUrl(showNfcModal.number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 rounded-xl border border-[#CBD5E1] bg-white hover:bg-gray-50 text-[#1E293B] hover:text-[#EF003F] transition-colors shrink-0 flex items-center justify-center cursor-pointer shadow-2xs"
+                  title="Abrir e testar cardápio desta mesa no navegador"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </div>
 
               <button
@@ -805,7 +812,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
                 onClick={() =>
                   handleShareNfcLink(
                     showNfcModal,
-                    `https://chamaii.com.br/r/${settings.name.toLowerCase().replace(/\\s+/g, '-')}/t/m_${showNfcModal.number < 10 ? '0' + showNfcModal.number : showNfcModal.number}`
+                    getClientTableUrl(showNfcModal.number)
                   )
                 }
                 className="w-full py-2.5 px-4 rounded-xl border border-[#CBD5E1] bg-white hover:bg-gray-50 text-[#1E293B] text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer"

@@ -50,11 +50,33 @@ export default function App() {
     const handleUrlParams = () => {
       const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
-      const mesa = params.get('mesa');
+      const mesaParam = params.get('mesa') || params.get('m') || params.get('table') || params.get('t');
 
-      if (view === 'client' || mesa) {
+      let tableNum: number | null = null;
+      if (mesaParam) {
+        const digits = mesaParam.replace(/\D/g, '');
+        const parsed = digits ? parseInt(digits, 10) : parseInt(mesaParam, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          tableNum = parsed;
+        }
+      }
+
+      // Check hash route support e.g. #mesa=3, #/mesa/3, #m3
+      if (!tableNum && window.location.hash) {
+        const hashMatch = window.location.hash.match(/(?:mesa|m|t|table)[=_/]?(\d+)/i);
+        if (hashMatch) {
+          const parsed = parseInt(hashMatch[1], 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            tableNum = parsed;
+          }
+        }
+      }
+
+      if (view === 'client' || tableNum !== null) {
         setViewMode('client');
-        if (mesa) setClientTableNum(parseInt(mesa, 10) || 1);
+        if (tableNum !== null) {
+          setClientTableNum(tableNum);
+        }
       } else if (view === 'tv') {
         setViewMode('tv');
       } else {
@@ -63,6 +85,8 @@ export default function App() {
     };
 
     handleUrlParams();
+    window.addEventListener('popstate', handleUrlParams);
+    window.addEventListener('hashchange', handleUrlParams);
 
     // Subscribe to reactive data updates
     const refreshData = () => {
@@ -77,7 +101,11 @@ export default function App() {
     };
 
     const unsub = storageService.subscribe(refreshData);
-    return () => unsub();
+    return () => {
+      window.removeEventListener('popstate', handleUrlParams);
+      window.removeEventListener('hashchange', handleUrlParams);
+      unsub();
+    };
   }, []);
 
   const handleToggleSound = () => {

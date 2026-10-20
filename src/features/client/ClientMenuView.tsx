@@ -53,7 +53,18 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
   customButtons,
   onBackToAdmin,
 }) => {
-  const currentTable = tables.find((t) => t.number === tableNumber) || tables[0];
+  const currentTable: Table = tables.find((t) => t.number === tableNumber) || {
+    id: `table-${tableNumber}`,
+    restaurantId: settings.restaurantId || 'rest-1',
+    name: `Mesa ${tableNumber < 10 ? '0' + tableNumber : tableNumber}`,
+    number: tableNumber,
+    sector: 'Salão Principal',
+    token: `tk_m${tableNumber}`,
+    qrUrl: '',
+    isEditable: true,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  };
 
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
